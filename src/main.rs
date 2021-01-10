@@ -1,12 +1,9 @@
-use core::panic;
-use std::{format, sync::Arc, u32, unreachable};
+use std::{format, sync::Arc};
 
-use blake3::Hash;
 use bytes::BufMut;
 use chrono::prelude::*;
 use futures::TryStreamExt;
-use http::response;
-use log::{info, trace, warn};
+use log::{info};
 use warp::{http, multipart::Part};
 use warp::{multipart::FormData, Buf};
 use warp::{Filter, Rejection, Reply};
@@ -78,7 +75,7 @@ async fn upload(
                     warp::reject::reject()
                 })?;
             let hash = blake3::hash(&value);
-            let hash_bytes = hash.as_bytes();
+            // let hash_bytes = hash.as_bytes();
             let short = &hash.to_hex()[0..4];
             let date: DateTime<Local> = Local::now();
             let existed = db.get(short).unwrap().is_some();
