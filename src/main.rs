@@ -2,8 +2,9 @@ use std::{format, sync::Arc};
 
 use bytes::BufMut;
 use chrono::prelude::*;
+use config::Config;
 use futures::TryStreamExt;
-use log::{info};
+use log::info;
 use warp::{http, multipart::Part};
 use warp::{multipart::FormData, Buf};
 use warp::{Filter, Rejection, Reply};
@@ -52,11 +53,7 @@ status: {}
     }
 }
 
-async fn upload(
-    form: FormData,
-    db: Arc<sled::Db>,
-    url: String,
-) -> Result<impl Reply, Rejection> {
+async fn upload(form: FormData, db: Arc<sled::Db>, url: String) -> Result<impl Reply, Rejection> {
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
         eprintln!("form error: {}", e);
         warp::reject::reject()
@@ -122,19 +119,26 @@ async fn upload(
 
 async fn view_data(key: String, db: Arc<sled::Db>) -> Result<impl Reply, Rejection> {
     if let Ok(Some(data)) = db.get(key.to_lowercase().as_str()) {
-        return Ok(warp::reply::with_status(String::from_utf8_lossy(&data).to_string(), http::StatusCode::FOUND));
+        return Ok(warp::reply::with_status(
+            String::from_utf8_lossy(&data).to_string(),
+            http::StatusCode::FOUND,
+        ));
     } else {
-        return Ok(warp::reply::with_status(String::from("not found"), http::StatusCode::NOT_FOUND));
+        return Ok(warp::reply::with_status(
+            String::from("not found"),
+            http::StatusCode::NOT_FOUND,
+        ));
     }
 }
 
 #[tokio::main]
 async fn main() {
     let db: Arc<sled::Db> = Arc::new(sled::open("db").unwrap());
+    let config: Config = config::Config::load(None).await.unwrap_or_default();
     let db_filter = warp::any().map(move || db.clone());
     let upload_route = warp::path::end()
         .and(warp::post())
-        .and(warp::multipart::form().max_length(5_000_000))
+        .and(warp::multipart::form().max_length(config.max_length))
         .and(db_filter.clone())
         .and(warp::header::<String>("host"))
         .and_then(upload);
@@ -143,5 +147,5 @@ async fn main() {
         .and(db_filter.clone())
         .and_then(view_data);
     let route = upload_route.or(view_route);
-    warp::serve(route).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(route).run(([127, 0, 0, 1], config.port)).await;
 }
