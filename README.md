@@ -1,6 +1,6 @@
 # rspb
 
-rust fork of [ptpb/pb](pb.mgt.moe)
+rust fork of [ptpb/pb](https://pb.mgt.moe)
 
 - [x] Creating pastes
 - [ ] Updating pastes
