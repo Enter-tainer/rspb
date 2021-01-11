@@ -7,6 +7,9 @@ use log::info;
 use warp::{http, multipart::Part};
 use warp::{multipart::FormData, Buf};
 use warp::{Rejection, Reply};
+
+use crate::highlighter::highlight_lines;
+
 enum UploadStatus {
     Created,
     Existed,
@@ -119,17 +122,33 @@ pub async fn upload(
 }
 
 pub async fn view_data(key: String, db: Arc<sled::Db>) -> Result<impl Reply, Rejection> {
-    if let Ok(Some(data)) = db.get(key.to_lowercase().as_str()) {
+    let mut database_key: String = key.clone().to_lowercase();
+    let mut ext: String = String::from("txt");
+    let mut highlighting = false;
+    if key.contains('.') {
+        let res: Vec<&str> = key.split('.').collect();
+        database_key = String::from(res[0]);
+        ext = String::from(res[res.len() - 1]);
+        highlighting = true;
+    }
+    if let Ok(Some(data)) = db.get(database_key.as_str()) {
         info!("get {} success", key);
-        return Ok(warp::reply::with_status(
+        if highlighting {
+            let html = highlight_lines(&String::from_utf8_lossy(&data).to_string(), &ext);
+            return Ok(warp::reply::html(html));
+        }
+        return Ok(warp::reply::html(
             String::from_utf8_lossy(&data).to_string(),
-            http::StatusCode::FOUND,
         ));
     } else {
         info!("get {} failed", key);
-        return Ok(warp::reply::with_status(
-            String::from("not found"),
-            http::StatusCode::NOT_FOUND,
-        ));
+        return Ok(warp::reply::html(String::from("not found")));
     }
 }
+
+// pub async fn shorten_url(
+//     form: FormData,
+//     db: Arc<sled::Db>,
+//     url: String,
+// ) -> Result<impl Reply, Rejection> {
+// }

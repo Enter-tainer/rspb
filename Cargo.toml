@@ -18,3 +18,5 @@ blake3 = "0.3.7"
 chrono = "0.4"
 log = "0.4"
 flexi_logger = { version = "0.17.0", features = ["colors"]}
+syntect = "4.5.0"
+lazy_static = "1.4.0"
