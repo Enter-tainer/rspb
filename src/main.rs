@@ -12,7 +12,11 @@ async fn main() {
         .format(flexi_logger::colored_default_format)
         .start()
         .unwrap();
-    let db: Arc<sled::Db> = Arc::new(sled::open("db").unwrap());
+    let sled_config = sled::Config::default()
+        .cache_capacity(5_000_000)
+        .use_compression(true)
+        .path("db");
+    let db: Arc<sled::Db> = Arc::new(sled_config.open().unwrap());
     let config: Config = config::Config::load(None).await.unwrap_or_default();
     let db_filter = warp::any().map(move || db.clone());
     let upload_route = warp::path::end()
