@@ -17,3 +17,4 @@ sled = "0.34.6"
 blake3 = "0.3.7"
 chrono = "0.4"
 log = "0.4"
+flexi_logger = { version = "0.17.0", features = ["colors"]}
