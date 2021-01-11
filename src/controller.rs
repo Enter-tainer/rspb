@@ -121,7 +121,7 @@ pub async fn upload(
     ))
 }
 
-pub async fn view_data(key: String, db: Arc<sled::Db>) -> Result<impl Reply, Rejection> {
+pub async fn view_data(key: String, db: Arc<sled::Db>) -> Result<warp::reply::Response, Rejection> {
     let mut database_key: String = key.clone().to_lowercase();
     let mut ext: String = String::from("txt");
     let mut highlighting = false;
@@ -135,14 +135,17 @@ pub async fn view_data(key: String, db: Arc<sled::Db>) -> Result<impl Reply, Rej
         info!("get {} success", key);
         if highlighting {
             let html = highlight_lines(&String::from_utf8_lossy(&data).to_string(), &ext);
-            return Ok(warp::reply::html(html));
+            return Ok(warp::reply::html(html).into_response());
         }
-        return Ok(warp::reply::html(
+        return Ok(warp::reply::with_status(
             String::from_utf8_lossy(&data).to_string(),
-        ));
+            http::StatusCode::OK,
+        )
+        .into_response());
     } else {
         info!("get {} failed", key);
-        return Ok(warp::reply::html(String::from("not found")));
+        return Ok(warp::reply::with_status(String::from("not found"), http::StatusCode::NOT_FOUND)
+            .into_response());
     }
 }
 
