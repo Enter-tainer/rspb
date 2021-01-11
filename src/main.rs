@@ -55,7 +55,7 @@ status: {}
 async fn upload(
     form: FormData,
     db: Arc<sled::Db>,
-    url: warp::path::FullPath,
+    url: String,
 ) -> Result<impl Reply, Rejection> {
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
         eprintln!("form error: {}", e);
@@ -93,7 +93,7 @@ async fn upload(
                 } else {
                     UploadStatus::Created
                 },
-                url: String::from(url.as_str()),
+                url: format!("{}/{}", url, short),
             };
             info!(
                 "{} {} of length {}",
@@ -121,7 +121,7 @@ async fn upload(
 }
 
 async fn view_data(key: String, db: Arc<sled::Db>) -> Result<impl Reply, Rejection> {
-    if let Ok(Some(data)) = db.get(key.as_str()) {
+    if let Ok(Some(data)) = db.get(key.to_lowercase().as_str()) {
         return Ok(warp::reply::with_status(String::from_utf8_lossy(&data).to_string(), http::StatusCode::FOUND));
     } else {
         return Ok(warp::reply::with_status(String::from("not found"), http::StatusCode::NOT_FOUND));
@@ -136,7 +136,7 @@ async fn main() {
         .and(warp::post())
         .and(warp::multipart::form().max_length(5_000_000))
         .and(db_filter.clone())
-        .and(warp::path::full())
+        .and(warp::header::<String>("host"))
         .and_then(upload);
     let view_route = warp::path!(String)
         .and(warp::get())
