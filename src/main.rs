@@ -5,6 +5,7 @@ use warp::Filter;
 mod config;
 mod controller;
 mod highlighter;
+mod model;
 #[tokio::main]
 async fn main() {
     highlighter::highlight_lines(&String::from(""),&String::from("rs"));
