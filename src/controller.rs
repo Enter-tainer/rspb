@@ -53,11 +53,7 @@ status: {}
     }
 }
 
-pub async fn upload(
-    form: FormData,
-    db: Arc<sled::Db>,
-    url: String,
-) -> Result<impl Reply, Rejection> {
+pub async fn upload(form: FormData, db: sled::Db, url: String) -> Result<impl Reply, Rejection> {
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
         eprintln!("form error: {}", e);
         warp::reject::reject()
@@ -121,7 +117,7 @@ pub async fn upload(
     ))
 }
 
-pub async fn view_data(key: String, db: Arc<sled::Db>) -> Result<warp::reply::Response, Rejection> {
+pub async fn view_data(key: String, db: sled::Db) -> Result<warp::reply::Response, Rejection> {
     let mut database_key: String = key.clone().to_lowercase();
     let mut ext: String = String::from("txt");
     let mut highlighting = false;
@@ -144,14 +140,17 @@ pub async fn view_data(key: String, db: Arc<sled::Db>) -> Result<warp::reply::Re
         .into_response());
     } else {
         info!("get {} failed", key);
-        return Ok(warp::reply::with_status(String::from("not found"), http::StatusCode::NOT_FOUND)
-            .into_response());
+        return Ok(warp::reply::with_status(
+            String::from("not found"),
+            http::StatusCode::NOT_FOUND,
+        )
+        .into_response());
     }
 }
 
 // pub async fn shorten_url(
 //     form: FormData,
-//     db: Arc<sled::Db>,
+//     db: sled::Db,
 //     url: String,
 // ) -> Result<impl Reply, Rejection> {
 // }

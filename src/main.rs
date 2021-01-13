@@ -8,7 +8,7 @@ mod highlighter;
 mod model;
 #[tokio::main]
 async fn main() {
-    highlighter::highlight_lines(&String::from(""),&String::from("rs"));
+    highlighter::highlight_lines(&String::from(""), &String::from("rs"));
     flexi_logger::Logger::with_env_or_str("info")
         .format(flexi_logger::colored_default_format)
         .start()
@@ -17,7 +17,7 @@ async fn main() {
         .cache_capacity(5_000_000)
         .use_compression(true)
         .path("db");
-    let db: Arc<sled::Db> = Arc::new(sled_config.open().unwrap());
+    let db: sled::Db = sled_config.open().unwrap();
     let config: Config = config::Config::load(None).await.unwrap_or_default();
     let db_filter = warp::any().map(move || db.clone());
     let upload_route = warp::path::end()
