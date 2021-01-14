@@ -1,5 +1,5 @@
 use config::Config;
-use std::sync::Arc;
+use model::DataTrees;
 
 use warp::Filter;
 mod config;
@@ -18,17 +18,18 @@ async fn main() {
         .use_compression(true)
         .path("db");
     let db: sled::Db = sled_config.open().unwrap();
+    let model: model::DataTrees = DataTrees::new(db);
     let config: Config = config::Config::load(None).await.unwrap_or_default();
-    let db_filter = warp::any().map(move || db.clone());
+    let model_filter = warp::any().map(move || model.clone());
     let upload_route = warp::path::end()
         .and(warp::post())
         .and(warp::multipart::form().max_length(config.max_length))
-        .and(db_filter.clone())
+        .and(model_filter.clone())
         .and(warp::header::<String>("host"))
         .and_then(controller::upload);
     let view_route = warp::path!(String)
         .and(warp::get())
-        .and(db_filter.clone())
+        .and(model_filter.clone())
         .and_then(controller::view_data);
     // let shorten_url_route = warp::path("u")
     //     .and(warp::post())

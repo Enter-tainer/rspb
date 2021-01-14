@@ -60,12 +60,12 @@ impl TextItem {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct DataBaseItem {
-    destroy_time: Option<DateTime<Utc>>,
-    custom_url: Option<String>,
-    uuid: Uuid,
-    hash: String,
-    short: String,
-    text: TextItem,
+    pub destroy_time: Option<DateTime<Utc>>,
+    pub custom_url: Option<String>,
+    pub uuid: Uuid,
+    pub hash: String,
+    pub short: String,
+    pub text: TextItem,
 }
 
 impl DataBaseItem {
@@ -114,7 +114,7 @@ fn insert_when_not_exist_transaction<K: AsRef<[u8]> + Into<IVec>, V: Into<IVec>>
     return Err(ConflictableTransactionError::Conflict);
 }
 
-pub fn add_record(db: DataTrees, data: DataBaseItem) -> Result<(), DataBaseErrorType> {
+pub fn add_record(db: DataTrees, data: &DataBaseItem) -> Result<(), DataBaseErrorType> {
     let res = (&db.db, &db.short_to_uuid_db, &db.custom_to_uuid_db).transaction(
         |(db, short_to_long_db, custom_to_long_db): &(
             TransactionalTree,
@@ -164,7 +164,7 @@ fn search_key_in_db(db: DataTrees, key: &[u8]) -> Result<TreeNames, DataBaseErro
 
 fn get_data_in_db(db: DataTrees, key: &[u8]) -> Result<DataBaseItem, DataBaseErrorType> {
     let res = search_key_in_db(db.clone(), key)?;
-    let mut data: DataBaseItem;
+    let data: DataBaseItem;
     match res {
         TreeNames::DataTree => {
             data = bincode::deserialize::<DataBaseItem>(&db.db.get(key).unwrap().unwrap()).unwrap();
@@ -204,7 +204,7 @@ pub fn delete_record(db: DataTrees, key: String) -> Result<(), DataBaseErrorType
     Ok(())
 }
 
-fn query_record(db: DataTrees, key: String) -> Result<DataBaseItem, DataBaseErrorType> {
+pub fn query_record(db: DataTrees, key: String) -> Result<DataBaseItem, DataBaseErrorType> {
     get_data_in_db(db, key.as_bytes())
 }
 
