@@ -1,8 +1,13 @@
 use blake3::Hash;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
+use sled::transaction;
 use sled::IVec;
+use sled::Transactional;
 use std::ops::Deref;
+use transaction::{
+    ConflictableTransactionError, TransactionResult, TransactionalTree, UnabortableTransactionError,
+};
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum TreeNames {
     DataTree,
@@ -36,7 +41,7 @@ impl DataTrees {
     }
 }
 
-enum DataBaseErrorType {
+pub enum DataBaseErrorType {
     Existed,
 }
 
@@ -82,7 +87,7 @@ impl DateBaseItem {
     }
 }
 
-fn insert_when_not_exist<K: AsRef<[u8]>, V: Into<IVec>>(
+fn insert_when_not_exist_cas<K: AsRef<[u8]>, V: Into<IVec>>(
     db: sled::Tree,
     key: K,
     value: V,
@@ -94,18 +99,53 @@ fn insert_when_not_exist<K: AsRef<[u8]>, V: Into<IVec>>(
     return Ok(());
 }
 
-pub fn add_record(db: DataTrees, data: DateBaseItem) -> Result<(), DataBaseErrorType> {
-    insert_when_not_exist(db.db, data.hash, bincode::serialize(&data).unwrap())?;
-    insert_when_not_exist(db.short_to_long_db, data.short, data.hash.as_bytes())?;
+fn insert_when_not_exist_transaction<K: AsRef<[u8]> + Into<IVec>, V: Into<IVec>>(
+    db: &transaction::TransactionalTree,
+    key: K,
+    value: V,
+) -> Result<(), ConflictableTransactionError> {
+    if db.get(&key).unwrap().is_none() {
+        if db.insert(key, value).is_ok() {
+            return Ok(());
+        } else {
+            return Err(ConflictableTransactionError::Conflict);
+        };
+    }
+    return Err(ConflictableTransactionError::Conflict);
+}
 
-    if let Some(special_url) = data.custom_url {
-        insert_when_not_exist(
-            db.custom_to_long_db,
-            &special_url.as_str(),
-            data.hash.as_bytes(),
-        )?;
+pub fn add_record(db: DataTrees, data: DateBaseItem) -> Result<(), DataBaseErrorType> {
+    let res = (&db.db, &db.short_to_long_db, &db.custom_to_long_db).transaction(
+        |(db, short_to_long_db, custom_to_long_db): &(
+            TransactionalTree,
+            TransactionalTree,
+            TransactionalTree,
+        )|
+         -> Result<(), ConflictableTransactionError> {
+            insert_when_not_exist_transaction(
+                db,
+                data.hash.as_bytes(),
+                bincode::serialize(&data).unwrap(),
+            )?;
+            insert_when_not_exist_transaction(
+                short_to_long_db,
+                data.short.as_bytes(),
+                data.hash.as_bytes(),
+            )?;
+            if let Some(special_url) = &data.custom_url {
+                insert_when_not_exist_transaction(
+                    custom_to_long_db,
+                    special_url.as_bytes(),
+                    data.hash.as_bytes(),
+                )?;
+            }
+            Ok(())
+        },
+    );
+    if res.is_err() {
+        return Err(DataBaseErrorType::Existed);
     }
     return Ok(());
 }
 
-pub fn delete_record(db: sled::Db, key: String) -> Result<(), DataBaseErrorType> {}
+// pub fn delete_record(db: sled::Db, key: String) -> Result<(), DataBaseErrorType> {}
