@@ -182,7 +182,11 @@ fn get_data_in_db(db: DataTrees, key: &[u8]) -> Result<DataBaseItem, DataBaseErr
 }
 
 pub fn delete_record(db: DataTrees, key: String) -> Result<(), DataBaseErrorType> {
-    let data = get_data_in_db(db.clone(), key.as_bytes())?;
+    let data = db.db.get(key.as_bytes()).unwrap();
+    if data.is_none() {
+        return Err(DataBaseErrorType::NotFound);
+    }
+    let data = bincode::deserialize::<DataBaseItem>(&data.unwrap()).unwrap();
     let res = (&db.db, &db.short_to_uuid_db, &db.custom_to_uuid_db).transaction(
         |(db, short_to_long_db, custom_to_long_db): &(
             TransactionalTree,
