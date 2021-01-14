@@ -22,6 +22,9 @@ async fn main() {
     let config: Config = config::Config::load(None).await.unwrap_or_default();
     let model_filter = warp::any().map(move || model.clone());
     let upload_route = warp::path::end()
+        .or(warp::path("u"))
+        .unify()
+        .and(warp::path::full())
         .and(warp::post())
         .and(warp::multipart::form().max_length(config.max_length))
         .and(model_filter.clone())
@@ -34,7 +37,7 @@ async fn main() {
     // let shorten_url_route = warp::path("u")
     //     .and(warp::post())
     //     .and(warp::multipart::form().max_length(config.max_length))
-    //     .and(db_filter.clone())
+    //     .and(model_filter.clone())
     //     .and(warp::header::<String>("host"))
     //     .and_then(controller::shorten_url);
     let route = upload_route.or(view_route);

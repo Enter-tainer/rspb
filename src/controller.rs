@@ -5,8 +5,8 @@ use chrono::prelude::*;
 use futures::TryStreamExt;
 use log::info;
 
-use model::{add_record, DataBaseItem};
-use warp::{http, multipart::Part};
+use model::{add_record, DataBaseItem, DataTrees};
+use warp::{http, hyper::Uri, multipart::Part, path::FullPath};
 use warp::{multipart::FormData, Buf};
 use warp::{Rejection, Reply};
 
@@ -76,6 +76,7 @@ async fn read_multipart_form(parts: Vec<Part>) -> HashMap<String, Vec<u8>> {
 }
 
 pub async fn upload(
+    path: FullPath,
     form: FormData,
     db: model::DataTrees,
     url: String,
@@ -86,14 +87,20 @@ pub async fn upload(
     })?;
     let data = read_multipart_form(parts).await;
     let content = data.get("c").or(data.get("content"));
+    let destroy = data.get("sunset");
     if let None = content {
         return Ok(warp::reply::with_status(
             String::from("error"),
             http::StatusCode::BAD_REQUEST,
         ));
     }
-    let item = DataBaseItem::new(
-        TextItem::Code(String::from(String::from_utf8_lossy(content.unwrap()))),
+    let content = String::from(String::from_utf8_lossy(content.unwrap()));
+    let item: DataBaseItem = DataBaseItem::new(
+        if path.as_str() == "/u" {
+            TextItem::ShortLink(String::from(content.trim_end()))
+        } else {
+            TextItem::Code(content.clone())
+        },
         None, // TODO:
         None, // TODO:
     );
@@ -108,7 +115,7 @@ pub async fn upload(
     let response = UploadResponse {
         date: date.to_string(),
         digest: item.hash,
-        size: content.unwrap().len(),
+        size: content.len(),
         status: upload_status,
         url: format!("{}/{}", url, item.short),
         short: item.short,
@@ -142,15 +149,29 @@ pub async fn view_data(
         info!("get {} success", key);
         match data.text {
             TextItem::Code(c) => {
+                log::info!("replying code");
                 if highlighting {
+                    log::info!("highlighting code");
                     let html = highlight_lines(&c, &ext);
                     return Ok(warp::reply::html(html).into_response());
                 }
                 return Ok(warp::reply::with_status(c, http::StatusCode::OK).into_response());
             }
             TextItem::ShortLink(l) => {
-                // TODO:
-                unreachable!();
+                log::info!("replying short link {}", l);
+                let res = l.parse::<Uri>();
+                match res {
+                    Ok(t) => {
+                        return Ok(warp::redirect(t).into_response());
+                    }
+                    Err(e) => {
+                        return Ok(warp::reply::with_status(
+                            e.to_string(),
+                            http::StatusCode::BAD_REQUEST,
+                        )
+                        .into_response())
+                    }
+                }
             }
         }
     } else {
@@ -162,10 +183,3 @@ pub async fn view_data(
         .into_response());
     }
 }
-
-// pub async fn shorten_url(
-//     form: FormData,
-//     db: sled::Db,
-//     url: String,
-// ) -> Result<impl Reply, Rejection> {
-// }
