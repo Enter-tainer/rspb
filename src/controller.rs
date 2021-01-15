@@ -16,6 +16,7 @@ use crate::{
 };
 
 enum UploadStatus {
+    Failed,
     Created,
     Existed,
 }
@@ -25,6 +26,7 @@ impl ToString for UploadStatus {
         match self {
             UploadStatus::Created => String::from("created"),
             UploadStatus::Existed => String::from("existed"),
+            UploadStatus::Failed => String::from("failed"),
         }
     }
 }
@@ -98,7 +100,7 @@ pub async fn upload(
         ));
     }
     let content = String::from(String::from_utf8_lossy(content.unwrap()));
-    let item: DataBaseItem = DataBaseItem::new(
+    let mut item: DataBaseItem = DataBaseItem::new(
         if path.as_str() == "/u" {
             TextItem::ShortLink(String::from(content.trim_end()))
         } else {
@@ -111,7 +113,16 @@ pub async fn upload(
     let upload_status: UploadStatus;
     match res {
         Ok(_) => upload_status = UploadStatus::Created,
-        Err(_) => upload_status = UploadStatus::Existed,
+        Err(t) => match t {
+            model::DataBaseErrorType::Existed(t) => {
+                upload_status = UploadStatus::Existed;
+                item = t;
+            }
+            model::DataBaseErrorType::Failed => upload_status = UploadStatus::Failed,
+            model::DataBaseErrorType::NotFound => {
+                unreachable!()
+            }
+        },
     }
     let date: DateTime<Utc> = Utc::now();
 

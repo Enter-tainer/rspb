@@ -40,8 +40,10 @@ impl DataTrees {
     }
 }
 
+#[derive(Debug)]
 pub enum DataBaseErrorType {
-    Existed,
+    Existed(DataBaseItem),
+    Failed,
     NotFound,
 }
 
@@ -96,7 +98,7 @@ fn insert_when_not_exist_cas<K: AsRef<[u8]>, V: Into<IVec>>(
 ) -> Result<(), DataBaseErrorType> {
     let res = db.compare_and_swap(key, None as Option<&[u8]>, Some(value));
     if let Err(_) = res {
-        return Err(DataBaseErrorType::Existed);
+        return Err(DataBaseErrorType::Failed);
     }
     return Ok(());
 }
@@ -117,6 +119,23 @@ fn insert_when_not_exist_transaction<K: AsRef<[u8]> + Into<IVec>, V: Into<IVec>>
 }
 
 pub fn add_record(db: DataTrees, data: &DataBaseItem) -> Result<(), DataBaseErrorType> {
+    if search_key_in_db(db.clone(), data.uuid.as_bytes()).is_ok() {
+        return Err(DataBaseErrorType::Existed(
+            get_data_in_db(db.clone(), data.uuid.as_bytes()).unwrap(),
+        ));
+    } else if search_key_in_db(db.clone(), data.short.as_bytes()).is_ok() {
+        return Err(DataBaseErrorType::Existed(
+            get_data_in_db(db.clone(), data.short.as_bytes()).unwrap(),
+        ));
+    } else {
+        if let Some(str) = &data.custom_url {
+            if search_key_in_db(db.clone(), str.as_bytes()).is_ok() {
+                return Err(DataBaseErrorType::Existed(
+                    get_data_in_db(db, str.as_bytes()).unwrap(),
+                ));
+            }
+        }
+    }
     let res = (&db.db, &db.short_to_uuid_db, &db.custom_to_uuid_db).transaction(
         |(db, short_to_long_db, custom_to_long_db): &(
             TransactionalTree,
@@ -124,28 +143,16 @@ pub fn add_record(db: DataTrees, data: &DataBaseItem) -> Result<(), DataBaseErro
             TransactionalTree,
         )|
          -> Result<(), ConflictableTransactionError> {
-            insert_when_not_exist_transaction(
-                db,
-                data.uuid.as_bytes(),
-                bincode::serialize(&data).unwrap(),
-            )?;
-            insert_when_not_exist_transaction(
-                short_to_long_db,
-                data.short.as_bytes(),
-                data.uuid.as_bytes(),
-            )?;
+            db.insert(data.uuid.as_bytes(), bincode::serialize(&data).unwrap())?;
+            short_to_long_db.insert(data.short.as_bytes(), data.uuid.as_bytes())?;
             if let Some(special_url) = &data.custom_url {
-                insert_when_not_exist_transaction(
-                    custom_to_long_db,
-                    special_url.as_bytes(),
-                    data.uuid.as_bytes(),
-                )?;
+                custom_to_long_db.insert(special_url.as_bytes(), data.uuid.as_bytes())?;
             }
             Ok(())
         },
     );
     if res.is_err() {
-        return Err(DataBaseErrorType::Existed);
+        return Err(DataBaseErrorType::Failed);
     }
     return Ok(());
 }
