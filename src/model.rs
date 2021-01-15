@@ -1,3 +1,5 @@
+use std::str::{from_utf8, from_utf8_unchecked};
+
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use sled::transaction;
@@ -158,15 +160,19 @@ pub fn add_record(db: DataTrees, data: &DataBaseItem) -> Result<(), DataBaseErro
 }
 
 fn search_key_in_db(db: DataTrees, key: &[u8]) -> Result<TreeNames, DataBaseErrorType> {
-    // uuid -> short -> custom
-    if db.db.contains_key(key).unwrap_or(false) {
-        return Ok(TreeNames::DataTree);
-    }
+    // short -> custom -> uuid
     if db.short_to_uuid_db.contains_key(key).unwrap_or(false) {
         return Ok(TreeNames::ShortNameTree);
     }
     if db.custom_to_uuid_db.contains_key(key).unwrap_or(false) {
         return Ok(TreeNames::CustomNameTree);
+    }
+    if let Ok(str) = from_utf8(key) {
+        if let Ok(id) = uuid::Uuid::parse_str(str) {
+            if db.db.contains_key(id.as_bytes()).unwrap_or(false) {
+                return Ok(TreeNames::DataTree);
+            }
+        }
     }
     return Err(DataBaseErrorType::NotFound);
 }
@@ -176,7 +182,13 @@ fn get_data_in_db(db: DataTrees, key: &[u8]) -> Result<DataBaseItem, DataBaseErr
     let data: DataBaseItem;
     match res {
         TreeNames::DataTree => {
-            data = bincode::deserialize::<DataBaseItem>(&db.db.get(key).unwrap().unwrap()).unwrap();
+            data = bincode::deserialize::<DataBaseItem>(
+                &db.db
+                    .get(Uuid::parse_str(from_utf8(key).unwrap()).unwrap().as_bytes())
+                    .unwrap()
+                    .unwrap(),
+            )
+            .unwrap();
         }
         TreeNames::ShortNameTree => {
             let key = db.short_to_uuid_db.get(key).unwrap().unwrap();
@@ -190,15 +202,8 @@ fn get_data_in_db(db: DataTrees, key: &[u8]) -> Result<DataBaseItem, DataBaseErr
     Ok(data)
 }
 
-pub fn delete_record(db: DataTrees, key: String) -> Result<(), DataBaseErrorType> {
-    let data = db
-        .db
-        .get(
-            Uuid::parse_str(key.as_str())
-                .unwrap_or(Uuid::new_v4())
-                .as_bytes(),
-        )
-        .unwrap();
+pub fn delete_record(db: DataTrees, key: Uuid) -> Result<(), DataBaseErrorType> {
+    let data = db.db.get(key.as_bytes()).unwrap();
     if data.is_none() {
         return Err(DataBaseErrorType::NotFound);
     }

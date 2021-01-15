@@ -181,7 +181,15 @@ pub async fn view_data(
         if let Some(t) = data.destroy_time {
             if now > t {
                 info!("... but it's expired");
-                let _delete_res = delete_record(db, data.uuid.to_string());
+                let delete_res = delete_record(db, data.uuid);
+                match delete_res {
+                    Ok(_) => {
+                        log::info!("delete {} success", key);
+                    }
+                    Err(_) => {
+                        log::warn!("delete {} key failed", key);
+                    }
+                }
                 return Ok(warp::reply::with_status(
                     String::from("expired"),
                     http::StatusCode::BAD_REQUEST,
@@ -224,4 +232,28 @@ pub async fn view_data(
         )
         .into_response());
     }
+}
+
+pub async fn delete_data(
+    key: String,
+    db: model::DataTrees,
+) -> Result<warp::reply::Response, Rejection> {
+    if let Ok(id) = uuid::Uuid::parse_str(key.as_str()) {
+        let delete_res = delete_record(db, id);
+        match delete_res {
+            Ok(_) => {
+                log::info!("delete {} success", key);
+            }
+            Err(_) => {
+                log::warn!("delete {} key failed", key);
+            }
+        }
+    } else {
+        return Ok(warp::reply::with_status(
+            format!("{} not found", key),
+            http::StatusCode::NOT_FOUND,
+        )
+        .into_response());
+    }
+    Ok(warp::reply::with_status(format!("deleted {}", key), http::StatusCode::OK).into_response())
 }
