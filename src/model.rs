@@ -1,4 +1,4 @@
-use std::str::{from_utf8, from_utf8_unchecked};
+use std::str::from_utf8;
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};

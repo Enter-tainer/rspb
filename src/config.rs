@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub port: u16,
     pub max_length: u64,
+    pub db_cache_capacity: u64,
 }
 
 impl Default for Config {
@@ -13,6 +14,7 @@ impl Default for Config {
         Config {
             port: 3999,
             max_length: 5_000_000,
+            db_cache_capacity: 5_000_000,
         }
     }
 }
