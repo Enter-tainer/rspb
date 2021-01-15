@@ -3,7 +3,6 @@ use std::str::from_utf8;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use sled::transaction;
-use sled::IVec;
 use sled::Transactional;
 use transaction::{ConflictableTransactionError, TransactionalTree};
 use uuid::Uuid;
@@ -50,18 +49,39 @@ pub enum DataBaseErrorType {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum TextItem {
-    Code(String),
+pub enum DataType {
+    Text(String),
     ShortLink(String),
     Binary(Vec<u8>),
 }
 
-impl TextItem {
+impl DataType {
     pub fn get_data(self: &Self) -> &[u8] {
         match self {
-            TextItem::Code(t) => t.as_bytes(),
-            TextItem::ShortLink(t) => t.as_bytes(),
-            TextItem::Binary(t) => t,
+            DataType::Text(t) => t.as_bytes(),
+            DataType::ShortLink(t) => t.as_bytes(),
+            DataType::Binary(t) => t,
+        }
+    }
+
+    pub fn from_bytes(data: Vec<u8>, is_short_link: Option<bool>) -> Option<DataType> {
+        let short_link = is_short_link.unwrap_or(false);
+        let d = String::from_utf8(data.clone());
+        match d {
+            Ok(str) => {
+                if short_link {
+                    return Some(DataType::ShortLink(str));
+                } else {
+                    return Some(DataType::Text(str));
+                }
+            }
+            Err(_) => {
+                if short_link {
+                    return None;
+                } else {
+                    return Some(DataType::Binary(data));
+                }
+            }
         }
     }
 }
@@ -73,21 +93,21 @@ pub struct DataBaseItem {
     pub uuid: Uuid,
     pub hash: String,
     pub short: String,
-    pub text: TextItem,
+    pub data: DataType,
 }
 
 impl DataBaseItem {
     pub fn new(
-        text: TextItem,
+        data: DataType,
         custom_url: Option<String>,
         destroy_time: Option<DateTime<Utc>>,
     ) -> DataBaseItem {
-        let hash = blake3::hash(text.get_data());
+        let hash = blake3::hash(data.get_data());
         let short = &base32::encode(hash.as_bytes())[0..4];
         DataBaseItem {
             destroy_time,
             custom_url,
-            text,
+            data: data,
             short: String::from(short),
             hash: String::from(hash.to_hex().as_str()),
             uuid: Uuid::new_v4(),
@@ -95,32 +115,32 @@ impl DataBaseItem {
     }
 }
 
-fn insert_when_not_exist_cas<K: AsRef<[u8]>, V: Into<IVec>>(
-    db: sled::Tree,
-    key: K,
-    value: V,
-) -> Result<(), DataBaseErrorType> {
-    let res = db.compare_and_swap(key, None as Option<&[u8]>, Some(value));
-    if let Err(_) = res {
-        return Err(DataBaseErrorType::Failed);
-    }
-    return Ok(());
-}
+// fn insert_when_not_exist_cas<K: AsRef<[u8]>, V: Into<IVec>>(
+//     db: sled::Tree,
+//     key: K,
+//     value: V,
+// ) -> Result<(), DataBaseErrorType> {
+//     let res = db.compare_and_swap(key, None as Option<&[u8]>, Some(value));
+//     if let Err(_) = res {
+//         return Err(DataBaseErrorType::Failed);
+//     }
+//     return Ok(());
+// }
 
-fn insert_when_not_exist_transaction<K: AsRef<[u8]> + Into<IVec>, V: Into<IVec>>(
-    db: &transaction::TransactionalTree,
-    key: K,
-    value: V,
-) -> Result<(), ConflictableTransactionError> {
-    if db.get(&key).unwrap().is_none() {
-        if db.insert(key, value).is_ok() {
-            return Ok(());
-        } else {
-            return Err(ConflictableTransactionError::Conflict);
-        };
-    }
-    return Err(ConflictableTransactionError::Conflict);
-}
+// fn insert_when_not_exist_transaction<K: AsRef<[u8]> + Into<IVec>, V: Into<IVec>>(
+//     db: &transaction::TransactionalTree,
+//     key: K,
+//     value: V,
+// ) -> Result<(), ConflictableTransactionError> {
+//     if db.get(&key).unwrap().is_none() {
+//         if db.insert(key, value).is_ok() {
+//             return Ok(());
+//         } else {
+//             return Err(ConflictableTransactionError::Conflict);
+//         };
+//     }
+//     return Err(ConflictableTransactionError::Conflict);
+// }
 
 pub fn add_record(db: DataTrees, data: &DataBaseItem) -> Result<(), DataBaseErrorType> {
     if search_key_in_db(db.clone(), data.uuid.as_bytes()).is_ok() {
@@ -235,25 +255,18 @@ pub fn query_record(db: DataTrees, key: String) -> Result<DataBaseItem, DataBase
     get_data_in_db(db, key.as_bytes())
 }
 
-// fn update_record(db: DataTrees, key: String, value: DataBaseItem) -> Result<(), DataBaseErrorType> {
-//     let data = get_data_in_db(db.clone(), key.as_bytes())?;
-//     let res = (&db.db, &db.short_to_uuid_db, &db.custom_to_uuid_db).transaction(
-//         |(db, short_to_long_db, custom_to_long_db): &(
-//             TransactionalTree,
-//             TransactionalTree,
-//             TransactionalTree,
-//         )|
-//          -> Result<(), ConflictableTransactionError> {
-//             db.insert(key.as_bytes(), bincode::serialize(&value).unwrap())?;
-//             short_to_long_db.insert(data.short.as_bytes(), value.short.as_bytes())?;
-//             if let Some(url) = &data.custom_url {
-//                 custom_to_long_db.insert(url.as_bytes(), va)?;
-//             }
-//             Ok(())
-//         },
-//     );
-//     if res.is_err() {
-//         return Err(DataBaseErrorType::NotFound);
-//     }
-//     Ok(())
-// }
+pub fn update_record(db: DataTrees, key: Uuid, value: DataType) -> Result<(), DataBaseErrorType> {
+    let mut data = get_data_in_db(db.clone(), key.to_string().as_bytes())?;
+    data.data = value;
+    data.hash = String::from(blake3::hash(data.data.get_data()).to_hex().as_str());
+    let res = db
+        .db
+        .transaction(|db| -> Result<(), ConflictableTransactionError> {
+            db.insert(key.as_bytes(), bincode::serialize(&data).unwrap())?;
+            Ok(())
+        });
+    if res.is_err() {
+        return Err(DataBaseErrorType::Failed);
+    }
+    Ok(())
+}

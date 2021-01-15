@@ -12,7 +12,7 @@ use warp::{Rejection, Reply};
 
 use crate::{
     highlighter::highlight_lines,
-    model::{self, TextItem},
+    model::{self, DataType},
 };
 
 enum UploadStatus {
@@ -96,34 +96,21 @@ async fn process_upload(
     let destroy = data.get("sunset");
     let now: DateTime<Utc> = Utc::now();
 
-    if let None = content {
+    if content.is_none() {
         return Ok(
             warp::reply::with_status(String::from("error"), http::StatusCode::BAD_REQUEST)
                 .into_response(),
         );
     }
-    let content_string = String::from_utf8(content.unwrap().clone());
-    let mut item: DataBaseItem;
-    match content_string {
-        Ok(data) => {
-            item = DataBaseItem::new(
-                if path.as_str() == "/u" {
-                    TextItem::ShortLink(String::from(data.trim_end()))
-                } else {
-                    TextItem::Code(data.clone())
-                },
-                custom_url.clone(),
-                None,
-            );
-        }
-        Err(_) => {
-            item = DataBaseItem::new(
-                TextItem::Binary(content.unwrap().clone()),
-                custom_url.clone(),
-                None,
-            );
-        }
+    let data = DataType::from_bytes(content.unwrap().clone(), Some(path.as_str() == "/u"));
+    if data.is_none() {
+        return Ok(
+            warp::reply::with_status(String::from("error"), http::StatusCode::BAD_REQUEST)
+                .into_response(),
+        );
     }
+    let data = data.unwrap();
+    let mut item: DataBaseItem = DataBaseItem::new(data, custom_url.clone(), None);
 
     if let Some(seconds) = destroy {
         let seconds = String::from(String::from_utf8_lossy(seconds)).parse::<i64>();
@@ -161,7 +148,11 @@ async fn process_upload(
         digest: item.hash,
         size: content.unwrap().len(),
         status: upload_status,
-        url: format!("{}/{}", url, custom_url.unwrap_or(item.short.clone())),
+        url: format!(
+            "http://{}/{}",
+            url,
+            custom_url.unwrap_or(item.short.clone())
+        ),
         short: item.short,
         uuid: item.uuid.to_string(),
     };
@@ -228,8 +219,8 @@ pub async fn view_data(
                 .into_response());
             }
         }
-        match data.text {
-            TextItem::Code(c) => {
+        match data.data {
+            DataType::Text(c) => {
                 log::info!("replying code");
                 if has_ext {
                     log::info!("highlighting code");
@@ -238,7 +229,7 @@ pub async fn view_data(
                 }
                 return Ok(warp::reply::with_status(c, http::StatusCode::OK).into_response());
             }
-            TextItem::ShortLink(l) => {
+            DataType::ShortLink(l) => {
                 log::info!("replying short link {}", l);
                 let res = l.parse::<Uri>();
                 match res {
@@ -254,7 +245,7 @@ pub async fn view_data(
                     }
                 }
             }
-            TextItem::Binary(t) => {
+            DataType::Binary(t) => {
                 //TODO: guess mime
                 log::info!("serving binary");
                 if has_ext {
@@ -296,17 +287,57 @@ pub async fn delete_data(
         match delete_res {
             Ok(_) => {
                 log::info!("delete {} success", key);
+                return Ok(warp::reply::with_status(
+                    format!("deleted {}", key),
+                    http::StatusCode::OK,
+                )
+                .into_response());
             }
             Err(_) => {
                 log::warn!("delete {} key failed", key);
             }
         }
-    } else {
-        return Ok(warp::reply::with_status(
-            format!("{} not found", key),
-            http::StatusCode::NOT_FOUND,
-        )
-        .into_response());
     }
-    Ok(warp::reply::with_status(format!("deleted {}", key), http::StatusCode::OK).into_response())
+    Ok(
+        warp::reply::with_status(format!("{} not found", key), http::StatusCode::NOT_FOUND)
+            .into_response(),
+    )
+}
+
+pub async fn update_data(
+    key: String,
+    db: model::DataTrees,
+    host: String,
+    form: FormData,
+) -> Result<warp::reply::Response, Rejection> {
+    let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
+        eprintln!("form error: {}", e);
+        warp::reject::reject()
+    })?;
+    let data = read_multipart_form(parts).await;
+    let content = data.get("c").or(data.get("content"));
+    if let Ok(id) = uuid::Uuid::parse_str(key.as_str()) {
+        if let Some(content) = content {
+            let data = DataType::from_bytes(content.clone(), None).unwrap();
+            let update_res = model::update_record(db.clone(), id, data);
+            let item = model::query_record(db, key.clone()).unwrap();
+            match update_res {
+                Ok(_) => {
+                    log::info!("update {} success", key);
+                    return Ok(warp::reply::with_status(
+                        format!("http://{}/{} updated", host, item.short),
+                        http::StatusCode::OK,
+                    )
+                    .into_response());
+                }
+                Err(_) => {
+                    log::warn!("update {} failed", key);
+                }
+            }
+        }
+    }
+    Ok(
+        warp::reply::with_status(format!("{} not found", key), http::StatusCode::BAD_REQUEST)
+            .into_response(),
+    )
 }
