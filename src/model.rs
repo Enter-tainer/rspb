@@ -5,6 +5,8 @@ use sled::IVec;
 use sled::Transactional;
 use transaction::{ConflictableTransactionError, TransactionalTree};
 use uuid::Uuid;
+
+use crate::base32;
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum TreeNames {
     DataTree,
@@ -75,12 +77,12 @@ impl DataBaseItem {
         destroy_time: Option<DateTime<Utc>>,
     ) -> DataBaseItem {
         let hash = blake3::hash(text.get_data().as_bytes());
-        let short = String::from(&hash.to_hex()[0..4]);
+        let short = &base32::encode(hash.as_bytes())[0..4];
         DataBaseItem {
             destroy_time,
             custom_url,
             text,
-            short,
+            short: String::from(short),
             hash: String::from(hash.to_hex().as_str()),
             uuid: Uuid::new_v4(),
         }

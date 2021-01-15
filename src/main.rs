@@ -2,6 +2,7 @@ use config::Config;
 use model::DataTrees;
 
 use warp::Filter;
+mod base32;
 mod config;
 mod controller;
 mod highlighter;

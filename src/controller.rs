@@ -36,6 +36,7 @@ struct UploadResponse {
     size: usize,
     status: UploadStatus,
     url: String,
+    uuid: String,
 }
 
 impl ToString for UploadResponse {
@@ -47,13 +48,15 @@ short: {}
 size: {}
 url: {}
 status: {}
+uuid: {}
 ",
             self.date,
             self.digest,
             self.short,
             self.size,
             self.url,
-            self.status.to_string()
+            self.status.to_string(),
+            self.uuid,
         );
     }
 }
@@ -119,6 +122,7 @@ pub async fn upload(
         status: upload_status,
         url: format!("{}/{}", url, item.short),
         short: item.short,
+        uuid: item.uuid.to_string(),
     };
     info!(
         "{} {} of length {}",
