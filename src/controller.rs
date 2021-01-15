@@ -80,12 +80,13 @@ async fn read_multipart_form(parts: Vec<Part>) -> HashMap<String, Vec<u8>> {
     res
 }
 
-pub async fn upload(
+async fn process_upload(
     path: FullPath,
     form: FormData,
     db: model::DataTrees,
     url: String,
-) -> Result<impl Reply, Rejection> {
+    custom_url: Option<String>,
+) -> Result<warp::reply::Response, Rejection> {
     let parts: Vec<Part> = form.try_collect().await.map_err(|e| {
         eprintln!("form error: {}", e);
         warp::reject::reject()
@@ -96,10 +97,10 @@ pub async fn upload(
     let now: DateTime<Utc> = Utc::now();
 
     if let None = content {
-        return Ok(warp::reply::with_status(
-            String::from("error"),
-            http::StatusCode::BAD_REQUEST,
-        ));
+        return Ok(
+            warp::reply::with_status(String::from("error"), http::StatusCode::BAD_REQUEST)
+                .into_response(),
+        );
     }
     let content_string = String::from_utf8(content.unwrap().clone());
     let mut item: DataBaseItem;
@@ -111,12 +112,16 @@ pub async fn upload(
                 } else {
                     TextItem::Code(data.clone())
                 },
-                None,
+                custom_url.clone(),
                 None,
             );
         }
         Err(_) => {
-            item = DataBaseItem::new(TextItem::Binary(content.unwrap().clone()), None, None);
+            item = DataBaseItem::new(
+                TextItem::Binary(content.unwrap().clone()),
+                custom_url.clone(),
+                None,
+            );
         }
     }
 
@@ -130,7 +135,8 @@ pub async fn upload(
                 return Ok(warp::reply::with_status(
                     err.to_string(),
                     http::StatusCode::BAD_REQUEST,
-                ));
+                )
+                .into_response());
             }
         }
     }
@@ -155,7 +161,7 @@ pub async fn upload(
         digest: item.hash,
         size: content.unwrap().len(),
         status: upload_status,
-        url: format!("{}/{}", url, item.short),
+        url: format!("{}/{}", url, custom_url.unwrap_or(item.short.clone())),
         short: item.short,
         uuid: item.uuid.to_string(),
     };
@@ -165,10 +171,26 @@ pub async fn upload(
         response.short,
         response.size
     );
-    Ok(warp::reply::with_status(
-        response.to_string(),
-        http::StatusCode::OK,
-    ))
+    Ok(warp::reply::with_status(response.to_string(), http::StatusCode::OK).into_response())
+}
+
+pub async fn upload(
+    path: FullPath,
+    form: FormData,
+    db: model::DataTrees,
+    url: String,
+) -> Result<warp::reply::Response, Rejection> {
+    process_upload(path, form, db, url, None).await
+}
+
+pub async fn custom_url_upload(
+    custom_url: String,
+    path: FullPath,
+    form: FormData,
+    db: model::DataTrees,
+    url: String,
+) -> Result<warp::reply::Response, Rejection> {
+    process_upload(path, form, db, url, Some(custom_url)).await
 }
 
 pub async fn view_data(

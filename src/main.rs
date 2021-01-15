@@ -31,6 +31,13 @@ async fn main() {
         .and(model_filter.clone())
         .and(warp::header::<String>("host"))
         .and_then(controller::upload);
+    let custom_url_route = warp::post()
+        .and(warp::path!(String))
+        .and(warp::path::full())
+        .and(warp::multipart::form().max_length(config.max_length))
+        .and(model_filter.clone())
+        .and(warp::header::<String>("host"))
+        .and_then(controller::custom_url_upload);
     let view_route = warp::get()
         .and(warp::path!(String))
         .and(model_filter.clone())
@@ -40,6 +47,9 @@ async fn main() {
         .and(model_filter.clone())
         .and_then(controller::delete_data);
 
-    let route = upload_route.or(view_route).or(delete_route);
+    let route = upload_route
+        .or(view_route)
+        .or(delete_route)
+        .or(custom_url_route);
     warp::serve(route).run(([127, 0, 0, 1], config.port)).await;
 }
