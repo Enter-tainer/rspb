@@ -191,7 +191,14 @@ fn get_data_in_db(db: DataTrees, key: &[u8]) -> Result<DataBaseItem, DataBaseErr
 }
 
 pub fn delete_record(db: DataTrees, key: String) -> Result<(), DataBaseErrorType> {
-    let data = db.db.get(key.as_bytes()).unwrap();
+    let data = db
+        .db
+        .get(
+            Uuid::parse_str(key.as_str())
+                .unwrap_or(Uuid::new_v4())
+                .as_bytes(),
+        )
+        .unwrap();
     if data.is_none() {
         return Err(DataBaseErrorType::NotFound);
     }

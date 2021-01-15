@@ -1,11 +1,11 @@
 use std::{collections::HashMap, unreachable};
 
 use bytes::BufMut;
-use chrono::prelude::*;
+use chrono::{prelude::*, Duration};
 use futures::TryStreamExt;
 use log::info;
 
-use model::{add_record, DataBaseItem, DataTrees};
+use model::{add_record, delete_record, DataBaseItem, DataTrees};
 use warp::{http, hyper::Uri, multipart::Part, path::FullPath};
 use warp::{multipart::FormData, Buf};
 use warp::{Rejection, Reply};
@@ -93,6 +93,8 @@ pub async fn upload(
     let data = read_multipart_form(parts).await;
     let content = data.get("c").or(data.get("content"));
     let destroy = data.get("sunset");
+    let now: DateTime<Utc> = Utc::now();
+
     if let None = content {
         return Ok(warp::reply::with_status(
             String::from("error"),
@@ -109,6 +111,20 @@ pub async fn upload(
         None, // TODO:
         None, // TODO:
     );
+    if let Some(seconds) = destroy {
+        let seconds = String::from(String::from_utf8_lossy(seconds)).parse::<i64>();
+        match seconds {
+            Ok(seconds) => {
+                item.destroy_time = Some(now + Duration::seconds(seconds));
+            }
+            Err(err) => {
+                return Ok(warp::reply::with_status(
+                    err.to_string(),
+                    http::StatusCode::BAD_REQUEST,
+                ));
+            }
+        }
+    }
     let res = add_record(db.clone(), &item);
     let upload_status: UploadStatus;
     match res {
@@ -124,10 +140,9 @@ pub async fn upload(
             }
         },
     }
-    let date: DateTime<Utc> = Utc::now();
 
     let response = UploadResponse {
-        date: date.to_string(),
+        date: now.to_string(),
         digest: item.hash,
         size: content.len(),
         status: upload_status,
@@ -154,14 +169,26 @@ pub async fn view_data(
     let mut database_key: String = key.clone().to_lowercase();
     let mut ext: String = String::from("txt");
     let mut highlighting = false;
+    let now = Utc::now();
     if key.contains('.') {
         let res: Vec<&str> = key.split('.').collect();
         database_key = String::from(res[0]);
         ext = String::from(res[res.len() - 1]);
         highlighting = true;
     }
-    if let Ok(data) = model::query_record(db.clone(), database_key) {
+    if let Ok(data) = model::query_record(db.clone(), database_key.clone()) {
         info!("get {} success", key);
+        if let Some(t) = data.destroy_time {
+            if now > t {
+                info!("... but it's expired");
+                let _delete_res = delete_record(db, data.uuid.to_string());
+                return Ok(warp::reply::with_status(
+                    String::from("expired"),
+                    http::StatusCode::BAD_REQUEST,
+                )
+                .into_response());
+            }
+        }
         match data.text {
             TextItem::Code(c) => {
                 log::info!("replying code");
