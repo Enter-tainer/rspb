@@ -5,7 +5,7 @@ use chrono::{prelude::*, Duration};
 use futures::TryStreamExt;
 use log::info;
 
-use model::{add_record, delete_record, DataBaseItem, DataTrees};
+use model::{add_record, delete_record, DataBaseItem};
 use warp::{http, hyper::Uri, multipart::Part, path::FullPath};
 use warp::{multipart::FormData, Buf};
 use warp::{Rejection, Reply};
@@ -101,16 +101,25 @@ pub async fn upload(
             http::StatusCode::BAD_REQUEST,
         ));
     }
-    let content = String::from(String::from_utf8_lossy(content.unwrap()));
-    let mut item: DataBaseItem = DataBaseItem::new(
-        if path.as_str() == "/u" {
-            TextItem::ShortLink(String::from(content.trim_end()))
-        } else {
-            TextItem::Code(content.clone())
-        },
-        None, // TODO:
-        None, // TODO:
-    );
+    let content_string = String::from_utf8(content.unwrap().clone());
+    let mut item: DataBaseItem;
+    match content_string {
+        Ok(data) => {
+            item = DataBaseItem::new(
+                if path.as_str() == "/u" {
+                    TextItem::ShortLink(String::from(data.trim_end()))
+                } else {
+                    TextItem::Code(data.clone())
+                },
+                None,
+                None,
+            );
+        }
+        Err(_) => {
+            item = DataBaseItem::new(TextItem::Binary(content.unwrap().clone()), None, None);
+        }
+    }
+
     if let Some(seconds) = destroy {
         let seconds = String::from(String::from_utf8_lossy(seconds)).parse::<i64>();
         match seconds {
@@ -144,7 +153,7 @@ pub async fn upload(
     let response = UploadResponse {
         date: now.to_string(),
         digest: item.hash,
-        size: content.len(),
+        size: content.unwrap().len(),
         status: upload_status,
         url: format!("{}/{}", url, item.short),
         short: item.short,
@@ -168,13 +177,13 @@ pub async fn view_data(
 ) -> Result<warp::reply::Response, Rejection> {
     let mut database_key: String = key.clone().to_lowercase();
     let mut ext: String = String::from("txt");
-    let mut highlighting = false;
+    let mut has_ext = false;
     let now = Utc::now();
     if key.contains('.') {
         let res: Vec<&str> = key.split('.').collect();
         database_key = String::from(res[0]);
         ext = String::from(res[res.len() - 1]);
-        highlighting = true;
+        has_ext = true;
     }
     if let Ok(data) = model::query_record(db.clone(), database_key.clone()) {
         info!("get {} success", key);
@@ -200,7 +209,7 @@ pub async fn view_data(
         match data.text {
             TextItem::Code(c) => {
                 log::info!("replying code");
-                if highlighting {
+                if has_ext {
                     log::info!("highlighting code");
                     let html = highlight_lines(&c, &ext);
                     return Ok(warp::reply::html(html).into_response());
@@ -222,6 +231,28 @@ pub async fn view_data(
                         .into_response())
                     }
                 }
+            }
+            TextItem::Binary(t) => {
+                //TODO: guess mime
+                log::info!("serving binary");
+                if has_ext {
+                    log::info!("guessing mime type");
+                    let guess = mime_guess::from_ext(ext.as_str());
+                    let mime = guess.first();
+                    return match mime {
+                        Some(mime) => {
+                            log::info!("guess {} as {}", ext, mime.to_string());
+                            Ok(
+                                warp::reply::with_header(t, "content-type", mime.to_string())
+                                    .into_response(),
+                            )
+                        }
+                        None => {
+                            Ok(warp::reply::with_status(t, http::StatusCode::OK).into_response())
+                        }
+                    };
+                }
+                return Ok(warp::reply::with_status(t, http::StatusCode::OK).into_response());
             }
         }
     } else {

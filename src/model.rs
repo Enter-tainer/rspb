@@ -53,13 +53,15 @@ pub enum DataBaseErrorType {
 pub enum TextItem {
     Code(String),
     ShortLink(String),
+    Binary(Vec<u8>),
 }
 
 impl TextItem {
-    pub fn get_data(self: &Self) -> String {
+    pub fn get_data(self: &Self) -> &[u8] {
         match self {
-            TextItem::Code(t) => t.clone(),
-            TextItem::ShortLink(t) => t.clone(),
+            TextItem::Code(t) => t.as_bytes(),
+            TextItem::ShortLink(t) => t.as_bytes(),
+            TextItem::Binary(t) => t,
         }
     }
 }
@@ -80,7 +82,7 @@ impl DataBaseItem {
         custom_url: Option<String>,
         destroy_time: Option<DateTime<Utc>>,
     ) -> DataBaseItem {
-        let hash = blake3::hash(text.get_data().as_bytes());
+        let hash = blake3::hash(text.get_data());
         let short = &base32::encode(hash.as_bytes())[0..4];
         DataBaseItem {
             destroy_time,
