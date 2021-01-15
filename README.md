@@ -8,5 +8,5 @@ rust fork of [ptpb/pb](https://pb.mgt.moe)
 - [x] Deleting pastes
 - [x] Shortening URLs
 - [x] Syntax highlighting
-- [ ] Vanity pastes
+- [x] Vanity pastes
 - [x] Sunsetting pastes
