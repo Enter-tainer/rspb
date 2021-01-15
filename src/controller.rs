@@ -221,11 +221,24 @@ pub async fn view_data(
         }
         match data.data {
             DataType::Text(c) => {
-                log::info!("replying code");
+                log::info!(
+                    "replying code {}",
+                    c.chars().into_iter().take(10).collect::<String>()
+                );
                 if has_ext {
-                    log::info!("highlighting code");
+                    log::info!(
+                        "highlighting code {}",
+                        c.chars().into_iter().take(10).collect::<String>()
+                    );
                     let html = highlight_lines(&c, &ext);
-                    return Ok(warp::reply::html(html).into_response());
+                    if let Some(html) = html {
+                        return Ok(warp::reply::html(html).into_response());
+                    }
+                    log::warn!(
+                        "highlight code {} with ext {} failed",
+                        c.chars().into_iter().take(10).collect::<String>(),
+                        ext
+                    )
                 }
                 return Ok(warp::reply::with_status(c, http::StatusCode::OK).into_response());
             }
