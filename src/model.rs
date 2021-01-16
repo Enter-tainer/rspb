@@ -70,7 +70,7 @@ impl DataType {
         match d {
             Ok(str) => {
                 if short_link {
-                    return Some(DataType::ShortLink(str));
+                    return Some(DataType::ShortLink(String::from(str.trim_end())));
                 } else {
                     return Some(DataType::Text(str));
                 }

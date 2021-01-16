@@ -42,7 +42,7 @@ deleted 7535e567-173f-4ba0-98ce-71cdd8f02d69
 ## Shortening URLs
 
 ```
-> echo google.com | curl -F c=@- pb.mgt.moe/u
+> echo http://google.com | curl -F c=@- pb.mgt.moe/u
 date: 2021-01-16 03:29:13.865511999 UTC
 digest: a1adc32c271516bfb33069304087db349649146f24744b4028d2f975697fd707
 short: 1unf
