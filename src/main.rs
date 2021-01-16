@@ -6,10 +6,16 @@ mod base32;
 mod config;
 mod controller;
 mod highlighter;
+mod markdown;
 mod model;
 #[tokio::main]
 async fn main() {
     let config: Config = config::Config::load(None).await.unwrap_or_default();
+    let help = markdown::render(
+        tokio::fs::read_to_string("README.md")
+            .await
+            .unwrap_or(String::from("cmd | curl -F c=@- https://pb.mgt.moe/")),
+    );
     highlighter::highlight_lines(&String::from(""), &String::from("rs"));
     flexi_logger::Logger::with_env_or_str("info")
         .format(flexi_logger::colored_default_format)
@@ -22,6 +28,9 @@ async fn main() {
     let db: sled::Db = sled_config.open().unwrap();
     let model: model::DataTrees = DataTrees::new(db);
     let model_filter = warp::any().map(move || model.clone());
+    let help_route = warp::path::end()
+        .and(warp::get())
+        .map(move || warp::reply::html(help.clone()));
     let upload_route = warp::path::end()
         .or(warp::path("u"))
         .unify()
@@ -57,6 +66,7 @@ async fn main() {
         .or(view_route)
         .or(delete_route)
         .or(custom_url_route)
-        .or(update_route);
+        .or(update_route)
+        .or(help_route);
     warp::serve(route).run(([127, 0, 0, 1], config.port)).await;
 }
