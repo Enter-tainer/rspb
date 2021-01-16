@@ -10,7 +10,8 @@ Create a new paste from the output of cmd:
 cmd | curl -F c=@- https://pb.mgt.moe/
 ```
 
-## Creating pastes
+## Usage
+### Creating pastes
 ```
 > echo hi | curl -F c=@- https://pb.mgt.moe/
 date: 2021-01-16 03:26:09.614299435 UTC
@@ -21,25 +22,25 @@ url: http://pb.mgt.moe/e74l
 status: created
 uuid: 7535e567-173f-4ba0-98ce-71cdd8f02d69
 ```
-## Updating pastes
+### Updating pastes
 ```
 > curl -X PUT -F c=@- pb.mgt.moe/7535e567-173f-4ba0-98ce-71cdd8f02d69 < config.yaml
 
 http://pb.mgt.moe/e74l updated
 ```
-## Using mimetypes
+### Using mimetypes
 
 Append '.pdf' to hint at browsers that they should probably display a pdf document:
 ```
 https://pb.mgt.moe/ullp.pdf
 ```
-## Deleting pastes
+### Deleting pastes
 ```
 > curl -X DELETE pb.mgt.moe/7535e567-173f-4ba0-98ce-71cdd8f02d69
 
 deleted 7535e567-173f-4ba0-98ce-71cdd8f02d69
 ```
-## Shortening URLs
+### Shortening URLs
 
 ```
 > echo http://google.com | curl -F c=@- pb.mgt.moe/u
@@ -52,7 +53,7 @@ status: created
 uuid: b87dcc37-a4c2-4d18-a3a3-c2d875912cde
 ```
 
-## Syntax highlighting
+### Syntax highlighting
 
 add '.rs' to the url to highlight rust source
 
@@ -60,7 +61,7 @@ add '.rs' to the url to highlight rust source
 http://pb.mgt.moe/1e6d.rs
 ```
 
-## Vanity pastes
+### Vanity pastes
 
 ```
 > echo nin | curl -F c=@- https://pb.mgt.moe/mom
@@ -73,7 +74,7 @@ status: created
 uuid: bac23f0c-0f06-4525-8ae4-624268485ef7
 ```
 
-## Sunsetting pastes
+### Sunsetting pastes
 
 ```
 > echo "This message will self-destruct in 5 seconds" | curl -F sunset=5 -F c=@- pb.mgt.moe
@@ -90,3 +91,7 @@ This message will self-destruct in 5 seconds
 > curl http://pb.mgt.moe/19vl
 expired
 ```
+
+## Deploy
+
+Download release and then run docker-compose up

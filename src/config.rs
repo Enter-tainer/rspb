@@ -1,9 +1,13 @@
-use std::usize;
+use std::{
+    net::{IpAddr, Ipv6Addr},
+    usize,
+};
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Config {
+    pub ip: std::net::IpAddr,
     pub port: u16,
     pub max_length: u64,
     pub db_cache_capacity: u64,
@@ -12,6 +16,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
+            ip: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)),
             port: 3999,
             max_length: 5_000_000,
             db_cache_capacity: 5_000_000,

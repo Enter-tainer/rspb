@@ -68,5 +68,5 @@ async fn main() {
         .or(custom_url_route)
         .or(update_route)
         .or(help_route);
-    warp::serve(route).run(([127, 0, 0, 1], config.port)).await;
+    warp::serve(route).run((config.ip, config.port)).await;
 }
