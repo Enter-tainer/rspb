@@ -67,6 +67,7 @@ async fn main() {
         .or(delete_route)
         .or(custom_url_route)
         .or(update_route)
-        .or(help_route);
+        .or(help_route)
+        .with(warp::log("rspb"));
     warp::serve(route).run((config.ip, config.port)).await;
 }
