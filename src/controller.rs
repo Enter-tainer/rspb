@@ -6,8 +6,8 @@ use futures::TryStreamExt;
 use log::info;
 
 use model::{add_record, delete_record, DataBaseItem};
+use warp::multipart::FormData;
 use warp::{http, hyper::Uri, multipart::Part, path::FullPath};
-use warp::{multipart::FormData, Buf};
 use warp::{Rejection, Reply};
 
 use crate::{
@@ -70,7 +70,7 @@ async fn read_multipart_form(parts: Vec<Part>) -> HashMap<String, Vec<u8>> {
         let value = p
             .stream()
             .try_fold(Vec::new(), |mut vec, data| {
-                vec.put(data.bytes());
+                vec.put(data);
                 async move { Ok(vec) }
             })
             .await
