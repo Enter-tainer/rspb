@@ -56,7 +56,7 @@ pub enum DataType {
 }
 
 impl DataType {
-    pub fn get_data(self: &Self) -> &[u8] {
+    pub fn get_data(&self) -> &[u8] {
         match self {
             DataType::Text(t) => t.as_bytes(),
             DataType::ShortLink(t) => t.as_bytes(),
@@ -72,14 +72,14 @@ impl DataType {
                 if short_link {
                     return Some(DataType::ShortLink(String::from(str.trim_end())));
                 } else {
-                    return Some(DataType::Text(str));
+                    Some(DataType::Text(str))
                 }
             }
             Err(_) => {
                 if short_link {
-                    return None;
+                    None
                 } else {
-                    return Some(DataType::Binary(data));
+                    Some(DataType::Binary(data))
                 }
             }
         }
@@ -107,7 +107,7 @@ impl DataBaseItem {
         DataBaseItem {
             destroy_time,
             custom_url,
-            data: data,
+            data,
             short: String::from(short),
             hash: String::from(hash.to_hex().as_str()),
             uuid: Uuid::new_v4(),
@@ -145,19 +145,17 @@ impl DataBaseItem {
 pub fn add_record(db: DataTrees, data: &DataBaseItem) -> Result<(), DataBaseErrorType> {
     if search_key_in_db(db.clone(), data.uuid.as_bytes()).is_ok() {
         return Err(DataBaseErrorType::Existed(
-            get_data_in_db(db.clone(), data.uuid.as_bytes()).unwrap(),
+            get_data_in_db(db, data.uuid.as_bytes()).unwrap(),
         ));
     } else if search_key_in_db(db.clone(), data.short.as_bytes()).is_ok() {
         return Err(DataBaseErrorType::Existed(
-            get_data_in_db(db.clone(), data.short.as_bytes()).unwrap(),
+            get_data_in_db(db, data.short.as_bytes()).unwrap(),
         ));
-    } else {
-        if let Some(str) = &data.custom_url {
-            if search_key_in_db(db.clone(), str.as_bytes()).is_ok() {
-                return Err(DataBaseErrorType::Existed(
-                    get_data_in_db(db, str.as_bytes()).unwrap(),
-                ));
-            }
+    } else if let Some(str) = &data.custom_url {
+        if search_key_in_db(db.clone(), str.as_bytes()).is_ok() {
+            return Err(DataBaseErrorType::Existed(
+                get_data_in_db(db, str.as_bytes()).unwrap(),
+            ));
         }
     }
     let res = (&db.db, &db.short_to_uuid_db, &db.custom_to_uuid_db).transaction(
@@ -178,7 +176,7 @@ pub fn add_record(db: DataTrees, data: &DataBaseItem) -> Result<(), DataBaseErro
     if res.is_err() {
         return Err(DataBaseErrorType::Failed);
     }
-    return Ok(());
+    Ok(())
 }
 
 fn search_key_in_db(db: DataTrees, key: &[u8]) -> Result<TreeNames, DataBaseErrorType> {
@@ -196,7 +194,7 @@ fn search_key_in_db(db: DataTrees, key: &[u8]) -> Result<TreeNames, DataBaseErro
             }
         }
     }
-    return Err(DataBaseErrorType::NotFound);
+    Err(DataBaseErrorType::NotFound)
 }
 
 fn get_data_in_db(db: DataTrees, key: &[u8]) -> Result<DataBaseItem, DataBaseErrorType> {

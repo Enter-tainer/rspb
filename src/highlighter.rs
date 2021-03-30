@@ -7,7 +7,7 @@ pub struct Highlighter {
     ts: syntect::highlighting::ThemeSet,
 }
 
-pub fn highlight_lines(code: &String, ext: &String) -> Option<String> {
+pub fn highlight_lines(code: &str, ext: &str) -> Option<String> {
     lazy_static! {
         static ref HIGHLIGHTER: Highlighter = Highlighter {
             ps: SyntaxSet::load_defaults_newlines(),
@@ -16,7 +16,7 @@ pub fn highlight_lines(code: &String, ext: &String) -> Option<String> {
     }
     let syntax = HIGHLIGHTER.ps.find_syntax_by_extension(ext)?;
     Some(syntect::html::highlighted_html_for_string(
-        &code.as_str(),
+        code,
         &HIGHLIGHTER.ps,
         syntax,
         &HIGHLIGHTER.ts.themes["InspiredGitHub"],

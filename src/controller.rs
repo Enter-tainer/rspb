@@ -74,7 +74,7 @@ async fn read_multipart_form(parts: Vec<Part>) -> HashMap<String, Vec<u8>> {
                 async move { Ok(vec) }
             })
             .await
-            .unwrap_or(vec![]);
+            .unwrap_or_default();
         res.insert(name, value);
     }
     res
@@ -92,7 +92,7 @@ async fn process_upload(
         warp::reject::reject()
     })?;
     let data = read_multipart_form(parts).await;
-    let content = data.get("c").or(data.get("content"));
+    let content = data.get("c").or_else(|| data.get("content"));
     let destroy = data.get("sunset");
     let now: DateTime<Utc> = Utc::now();
 
@@ -188,7 +188,7 @@ pub async fn view_data(
     key: String,
     db: model::DataTrees,
 ) -> Result<warp::reply::Response, Rejection> {
-    let mut database_key: String = key.clone().to_lowercase();
+    let mut database_key: String = key.to_lowercase();
     let mut ext: String = String::from("txt");
     let mut has_ext = false;
     let now = Utc::now();
@@ -198,7 +198,7 @@ pub async fn view_data(
         ext = String::from(res[res.len() - 1]);
         has_ext = true;
     }
-    if let Ok(data) = model::query_record(db.clone(), database_key.clone()) {
+    if let Ok(data) = model::query_record(db.clone(), database_key) {
         info!("get {} success", key);
         if let Some(t) = data.destroy_time {
             if now > t {
@@ -328,7 +328,7 @@ pub async fn update_data(
         warp::reject::reject()
     })?;
     let data = read_multipart_form(parts).await;
-    let content = data.get("c").or(data.get("content"));
+    let content = data.get("c").or_else(|| data.get("content"));
     if let Ok(id) = uuid::Uuid::parse_str(key.as_str()) {
         if let Some(content) = content {
             let data = DataType::from_bytes(content.clone(), None).unwrap();

@@ -14,7 +14,7 @@ async fn main() {
     let help = markdown::render(
         tokio::fs::read_to_string("README.md")
             .await
-            .unwrap_or(String::from("cmd | curl -F c=@- https://pb.mgt.moe/")),
+            .unwrap_or_else(|_| String::from("cmd | curl -F c=@- https://pb.mgt.moe/")),
     );
     highlighter::highlight_lines(&String::from(""), &String::from("rs"));
     flexi_logger::Logger::with_env_or_str("info")
