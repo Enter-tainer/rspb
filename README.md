@@ -10,6 +10,18 @@ Create a new paste from the output of cmd:
 cmd | curl -F c=@- https://pb.mgt.moe/
 ```
 
+## Web
+
+<form enctype="multipart/form-data">
+  <label>
+    <textarea placeholder='Put your paste here' id="c" name='c' rows='20' style="width: 100%; font-family: monospace; font-size: 14px"></textarea>
+  </label>
+  <div style="display: flex; align-items: center">
+    <input id="e" placeholder='Expire in (secs)' name='sunset' type='number' min='60' style="width: 10em"/>
+    <input type="submit" value="Submit" formaction="https://pb.mgt.moe/" formmethod="POST">
+  </div>
+</form>
+
 ## Usage
 ### Creating pastes
 ```
