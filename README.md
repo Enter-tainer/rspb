@@ -17,7 +17,8 @@ cmd | curl -F c=@- https://pb.mgt.moe/
     <textarea placeholder='Put your paste here' id="c" name='c' rows='20' style="width: 100%; font-family: monospace; font-size: 14px"></textarea>
   </label>
   <div style="display: flex; align-items: center">
-    <input id="e" placeholder='Expire in (secs)' name='sunset' type='number' min='60' style="width: 10em"/>
+  <label>Expire in (secs): </label>
+    <input id="sunset" name='sunset' type='number' min='60' style="width: 20em" value='3600' step='60'/>
     <input type="submit" value="Submit" formaction="https://pb.mgt.moe/" formmethod="POST">
   </div>
 </form>
