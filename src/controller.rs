@@ -181,6 +181,13 @@ pub async fn custom_url_upload(
     db: model::DataTrees,
     url: String,
 ) -> Result<warp::reply::Response, Rejection> {
+    if custom_url.contains('.') {
+        return Ok(warp::reply::with_status(
+            "custom url should not contain '.' ".to_string(),
+            http::StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .into_response());
+    }
     process_upload(path, form, db, url, Some(custom_url)).await
 }
 
