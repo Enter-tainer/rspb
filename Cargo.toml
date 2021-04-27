@@ -1,6 +1,6 @@
 [package]
 name = "rspb"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["Margatroid <i@margatroid.xyz>"]
 edition = "2018"
 
