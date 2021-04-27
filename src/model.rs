@@ -70,7 +70,11 @@ impl DataType {
         match d {
             Ok(str) => {
                 if short_link {
-                    return Some(DataType::ShortLink(String::from(str.trim_end())));
+                    let mut res = str.trim_end().to_string();
+                    if !res.starts_with("http") {
+                        res = format!("https://{}", res);
+                    }
+                    Some(DataType::ShortLink(res))
                 } else {
                     Some(DataType::Text(str))
                 }

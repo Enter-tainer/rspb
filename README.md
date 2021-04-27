@@ -9,20 +9,6 @@ Create a new paste from the output of cmd:
 ```
 cmd | curl -F c=@- https://pb.mgt.moe/
 ```
-
-## Web
-
-<form enctype="multipart/form-data">
-  <label>
-    <textarea placeholder='Put your paste here' id="c" name='c' rows='20' style="width: 100%; font-family: monospace; font-size: 14px"></textarea>
-  </label>
-  <div style="display: flex; align-items: center">
-  <label>Expire in (secs): </label>
-    <input id="sunset" name='sunset' type='number' min='60' style="width: 20em" value='3600' step='60'/>
-    <input type="submit" value="Submit" formaction="https://pb.mgt.moe/" formmethod="POST">
-  </div>
-</form>
-
 ## Usage
 ### Creating pastes
 ```
@@ -35,6 +21,16 @@ url: http://pb.mgt.moe/e74l
 status: created
 uuid: 7535e567-173f-4ba0-98ce-71cdd8f02d69
 ```
+
+<form enctype="multipart/form-data">
+  <label>
+    <textarea placeholder='Put your paste here' id="c" name='c' rows='20' style="width: 100%; font-family: monospace; font-size: 14px" required></textarea>
+  </label>
+  <div style="display: flex; align-items: center">
+    <input type="submit" value="Submit" formaction="https://pb.mgt.moe/" formmethod="POST">
+  </div>
+</form>
+
 ### Updating pastes
 ```
 > curl -X PUT -F c=@- pb.mgt.moe/7535e567-173f-4ba0-98ce-71cdd8f02d69 < config.yaml
@@ -65,6 +61,15 @@ url: http://pb.mgt.moe/1unf
 status: created
 uuid: b87dcc37-a4c2-4d18-a3a3-c2d875912cde
 ```
+
+<form enctype="multipart/form-data">
+  <label>
+    <textarea placeholder='Put your url here' id="c" name='c' rows='1' style="width: 100%; font-family: monospace; font-size: 14px" required></textarea>
+  </label>
+  <div style="display: flex; align-items: center">
+    <input type="submit" value="Submit" formaction="https://pb.mgt.moe/u" formmethod="POST">
+  </div>
+</form>
 
 ### Syntax highlighting
 
@@ -104,6 +109,17 @@ This message will self-destruct in 5 seconds
 > curl http://pb.mgt.moe/19vl
 expired
 ```
+
+<form enctype="multipart/form-data">
+  <label>
+    <textarea placeholder='Put your paste here' id="c" name='c' rows='20' style="width: 100%; font-family: monospace; font-size: 14px" required></textarea>
+  </label>
+  <div style="display: flex; align-items: center">
+  <label>Expire in (secs): </label>
+    <input id="sunset" name='sunset' type='number' min='60' style="width: 20em" value='360000' step='60' required/>
+    <input type="submit" value="Submit" formaction="https://pb.mgt.moe/" formmethod="POST">
+  </div>
+</form>
 
 ## Deploy
 
