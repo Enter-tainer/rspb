@@ -1,5 +1,6 @@
 use config::Config;
 use model::DataTrees;
+use mimalloc::MiMalloc;
 
 use warp::Filter;
 mod base32;
@@ -8,6 +9,10 @@ mod controller;
 mod highlighter;
 mod markdown;
 mod model;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[tokio::main]
 async fn main() {
     let config: Config = config::Config::load(None).await.unwrap_or_default();

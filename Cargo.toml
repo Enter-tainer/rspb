@@ -25,6 +25,7 @@ uuid = { version = "0.8.2", features = ["serde", "v4"] }
 num-bigint = "0.4"
 mime_guess = "2.0.3"
 pulldown-cmark = { version = "0.8", default-features = false, features = ["simd"] }
+mimalloc = { version = "*", default-features = false }
 
 [profile.release]
 lto = "fat"
