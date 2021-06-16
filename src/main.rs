@@ -22,7 +22,8 @@ async fn main() {
             .unwrap_or_else(|_| String::from("cmd | curl -F c=@- https://pb.mgt.moe/")),
     );
     highlighter::highlight_lines(&String::from(""), &String::from("rs"));
-    flexi_logger::Logger::with_env_or_str("info")
+    flexi_logger::Logger::try_with_env_or_str("info")
+        .unwrap()
         .format(flexi_logger::colored_default_format)
         .start()
         .unwrap();
